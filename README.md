@@ -1,1 +1,3 @@
-# GB_Best_CourseWork
+# Install
+
+1. make init build

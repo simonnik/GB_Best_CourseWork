@@ -15,6 +15,8 @@ ifndef HAS_IMPORTS
 	go install golang.org/x/tools/cmd/goimports
 endif
 
+init: bootstrap pre-commit-install
+
 build: test
 	go build -ldflags $(LDFLAGS) -o bin/sql ./main.go
 
