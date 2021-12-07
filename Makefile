@@ -20,6 +20,9 @@ init: bootstrap pre-commit-install
 build: test
 	go build -ldflags $(LDFLAGS) -o bin/sql ./main.go
 
+run:
+	go run -ldflags $(LDFLAGS) ./cmd/cw/cw.go -config="config.yaml"
+
 test:
 	@echo "+ $@"
 	@go list -f '"go test -v {{.Dir}}"' $(GO_PKG) | xargs -L 1 sh -c
@@ -49,4 +52,6 @@ pre-commit-install:
 	test \
 	fmt \
 	imports \
-	lint
+	lint \
+	init \
+	run
