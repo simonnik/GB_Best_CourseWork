@@ -1,5 +1,3 @@
-BUILD_COMMIT=$(shell git log --format="%H" -n 1)
-LDFLAGS="-X 'main.BuildGitHash=$(BUILD_COMMIT)'"
 
 HAS_LINT := $(shell command -v golangci-lint;)
 HAS_IMPORTS := $(shell command -v goimports;)
@@ -18,14 +16,14 @@ endif
 init: bootstrap pre-commit-install
 
 build: test
-	go build -ldflags $(LDFLAGS) -o bin/sql ./main.go
+	go build -o bin/ql ./cmd/cw/cw.go
 
 run:
-	go run -ldflags $(LDFLAGS) ./cmd/cw/cw.go -config="config.yaml"
+	go run ./cmd/cw/cw.go -config="config.yaml"
 
 test:
 	@echo "+ $@"
-	@go list -f '"go test -v {{.Dir}}"' $(GO_PKG) | xargs -L 1 sh -c
+	@go list -f '"go test -race -cover -v {{.Dir}}"' $(GO_PKG) | xargs -L 1 sh -c
 
 fmt:
 	@echo "+ $@"
@@ -35,7 +33,7 @@ imports:
 	@echo "+ $@"
 	@go list -f '"goimports -w {{.Dir}}"' ${GO_PKG} | xargs -L 1 sh -c
 
-lint: bootstrap
+check: bootstrap
 	@echo "+ $@"
 	@golangci-lint run ./...
 
@@ -52,6 +50,6 @@ pre-commit-install:
 	test \
 	fmt \
 	imports \
-	lint \
+	check \
 	init \
 	run

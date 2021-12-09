@@ -9,7 +9,8 @@ import (
 // Config - структура для конфигурации
 type Config struct {
 	App struct {
-		Timeout int `fig:"timeout" default:"5"`
+		Timeout int    `fig:"timeout" default:"5"`
+		File    string `fig:"config" default:"config.yaml"`
 	} `yaml:"app"`
 }
 
