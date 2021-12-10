@@ -1,0 +1,12 @@
+name: unit-test
+on: push
+jobs:
+  tests:
+    runs-on: ubuntu-18.04
+    steps:
+      - name: "Get go"
+        uses: actions/setup-go@v2
+      - name: "Checkout repository"
+        uses: actions/checkout@v2
+      - name: "Run unit tests"
+        run: go test -v ./...
