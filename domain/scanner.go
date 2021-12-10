@@ -1,3 +1,4 @@
+//go:generate mockery --name=Scanner
 package domain
 
 import (

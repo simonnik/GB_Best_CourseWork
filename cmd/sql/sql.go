@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -23,8 +24,9 @@ func main() {
 	accessLogger := newLogger("logs/access.log")
 	errorLogger := newLogger("logs/error.log")
 	printLastCommit(errorLogger)
-
-	cfg, err := config.NewConfig()
+	configFile := flag.String("config", "config.yaml", "set path to configuration file")
+	flag.Parse()
+	cfg, err := config.NewConfig(configFile)
 	if err != nil {
 		errorLogger.Fatalf("Cannot read configuration")
 		return
@@ -48,20 +50,22 @@ func main() {
 	if err != nil {
 		errorLogger.Error(err)
 		cancel()
-		return
+		log.Fatal(err)
 	}
 	defer s.File.Close()
 	h, err := s.GetHeaders()
 	if err != nil {
 		errorLogger.Error(err)
 		cancel()
+		log.Print(err)
 		return
 	}
 	accessLogger.With(zap.Strings("Headers", h)).Info("Getting headers from file")
-	go s.Scan(ctx, q)
+	go s.Scan(ctx, *q)
 	if err != nil {
 		errorLogger.Error(err)
 		cancel()
+		log.Print(err)
 		return
 	}
 
@@ -71,26 +75,28 @@ func main() {
 		case <-ctx.Done(): // Если всё завершили - выходим
 			msg := "Вышло время выполнения\n"
 			errorLogger.Info(msg)
-			fmt.Print(msg)
+			log.Print(msg)
 			return
 		case sig := <-sigCh:
 			if sig == syscall.SIGINT {
-				errorLogger.Error("Получили сигнал SIGINT")
+				msg := "Получили сигнал SIGINT"
+				errorLogger.Error(msg)
 				cancel() // Если пришёл сигнал SigInt - завершаем контекст
+				log.Print(msg)
 				return
 			}
 		case msg := <-s.ChanResult():
 			switch {
 			case msg.Err != nil:
 				err := fmt.Sprintf("Error: %s\n", msg.Err.Error())
-				log.Print(err)
 				errorLogger.Error(err)
 				cancel()
+				log.Print(err)
 				return
 			case len(msg.Results) > 0:
 				fmt.Printf("%s\n", msg.Results)
 			case msg.Finished:
-				fmt.Print("Finished\n")
+				log.Print("Finished\n")
 				accessLogger.Info("Finished")
 				cancel()
 				return

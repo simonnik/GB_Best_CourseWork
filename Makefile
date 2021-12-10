@@ -16,10 +16,10 @@ endif
 init: bootstrap pre-commit-install
 
 build: test
-	go build -o bin/ql ./cmd/cw/cw.go
+	go build -o bin/sql ./cmd/sql/sql.go
 
 run:
-	go run ./cmd/cw/cw.go -config="config.yaml"
+	go run ./cmd/sql/sql.go -config="config.yaml"
 
 test:
 	@echo "+ $@"

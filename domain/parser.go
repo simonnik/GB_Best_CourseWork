@@ -1,3 +1,4 @@
+//go:generate mockery --name=Parser
 package domain
 
 import (

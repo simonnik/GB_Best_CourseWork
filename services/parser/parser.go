@@ -34,20 +34,22 @@ func NewParser(sql string) *Parser {
 }
 
 // Parse takes a string representing a SQL query and parses it into a Query struct. It may fail.
-func (p *Parser) Parse() (Query, error) {
+func (p *Parser) Parse() (*Query, error) {
 	q, err := p.DoParse()
 	p.err = err
 	if p.err == nil {
 		p.err = p.Validate()
 	}
-	p.LogError()
+	if p.err != nil {
+		return nil, p.err
+	}
 	return q, p.err
 }
 
-func (p *Parser) DoParse() (Query, error) {
+func (p *Parser) DoParse() (*Query, error) {
 	for {
 		if p.i >= len(p.sql) {
-			return p.query, p.err
+			return &p.query, p.err
 		}
 		switch p.step {
 		case stepType:
@@ -57,12 +59,12 @@ func (p *Parser) DoParse() (Query, error) {
 				p.Pop()
 				p.step = stepSelectField
 			default:
-				return p.query, fmt.Errorf("invalid query type")
+				return nil, fmt.Errorf("invalid query type")
 			}
 		case stepSelectField:
 			identifier := p.Peek()
 			if !isIdentifierOrAsterisk(identifier) {
-				return p.query, fmt.Errorf("at SELECT: expected field to SELECT")
+				return nil, fmt.Errorf("at SELECT: expected field to SELECT")
 			}
 			p.query.Fields = append(p.query.Fields, identifier)
 			p.Pop()
@@ -75,21 +77,21 @@ func (p *Parser) DoParse() (Query, error) {
 		case stepSelectComma:
 			commaRWord := p.Peek()
 			if commaRWord != "," {
-				return p.query, fmt.Errorf("at SELECT: expected comma or FROM")
+				return nil, fmt.Errorf("at SELECT: expected comma or FROM")
 			}
 			p.Pop()
 			p.step = stepSelectField
 		case stepSelectFrom:
 			fromRWord := p.Peek()
 			if strings.ToUpper(fromRWord) != "FROM" {
-				return p.query, fmt.Errorf("at SELECT: expected FROM")
+				return nil, fmt.Errorf("at SELECT: expected FROM")
 			}
 			p.Pop()
 			p.step = stepSelectFromTable
 		case stepSelectFromTable:
 			tableName := p.Peek()
 			if len(tableName) == 0 {
-				return p.query, fmt.Errorf("at SELECT: expected quoted table name")
+				return nil, fmt.Errorf("at SELECT: expected quoted table name")
 			}
 			p.query.TableName = tableName
 			p.Pop()
@@ -97,18 +99,17 @@ func (p *Parser) DoParse() (Query, error) {
 		case stepWhere:
 			whereRWord := p.Peek()
 			if strings.ToUpper(whereRWord) != "WHERE" {
-				return p.query, fmt.Errorf("expected WHERE")
+				return nil, fmt.Errorf("expected WHERE")
 			}
 			p.Pop()
 			p.step = stepWhereField
 		case stepWhereField:
 			identifier := p.Peek()
 			if !isIdentifier(identifier) {
-				return p.query, fmt.Errorf("at WHERE: expected field")
+				return nil, fmt.Errorf("at WHERE: expected field")
 			}
 			cond := Condition{
-				Operand1:        identifier,
-				Operand1IsField: true,
+				OperandLeft: identifier,
 			}
 			if p.query.LastCondWhere != UnknownCondWhere {
 				cond.Condition = p.query.LastCondWhere
@@ -133,7 +134,7 @@ func (p *Parser) DoParse() (Query, error) {
 			case "!=":
 				currentCondition.Operator = Ne
 			default:
-				return p.query, fmt.Errorf("at WHERE: unknown operator")
+				return nil, fmt.Errorf("at WHERE: unknown operator")
 			}
 			p.query.Conditions[len(p.query.Conditions)-1] = currentCondition
 			p.Pop()
@@ -141,8 +142,7 @@ func (p *Parser) DoParse() (Query, error) {
 		case stepWhereValue:
 			currentCondition := p.query.Conditions[len(p.query.Conditions)-1]
 			identifier := p.Peek()
-			currentCondition.Operand2 = identifier
-			currentCondition.Operand2IsField = isIdentifier(identifier)
+			currentCondition.OperandRight = identifier
 			p.query.Conditions[len(p.query.Conditions)-1] = currentCondition
 			p.Pop()
 			p.step = stepWhereCondition
@@ -154,7 +154,7 @@ func (p *Parser) DoParse() (Query, error) {
 			case "OR":
 				p.query.LastCondWhere = Or
 			default:
-				return p.query, fmt.Errorf("at Condition: unknown condition")
+				return nil, fmt.Errorf("at Condition: unknown condition")
 			}
 			p.Pop()
 			p.step = stepWhereField
@@ -225,7 +225,7 @@ func (p *Parser) PeekIdentifierWithLength() (string, int) {
 
 func (p *Parser) Validate() error {
 	if len(p.query.Conditions) == 0 && p.step == stepWhereField {
-		return fmt.Errorf("at WHERE: empty WHERE clause")
+		return fmt.Errorf("empty WHERE clause")
 	}
 	if p.query.Type == UnknownType {
 		return fmt.Errorf("query type cannot be empty")
@@ -235,25 +235,16 @@ func (p *Parser) Validate() error {
 	}
 	for _, c := range p.query.Conditions {
 		if c.Operator == UnknownOperator {
-			return fmt.Errorf("at WHERE: condition without operator")
+			return fmt.Errorf("condition without operator")
 		}
-		if c.Operand1 == "" && c.Operand1IsField {
-			return fmt.Errorf("at WHERE: condition with empty left side operand")
+		if c.OperandLeft == "" {
+			return fmt.Errorf("condition with empty left side operand")
 		}
-		if c.Operand2 == "" && c.Operand2IsField {
-			return fmt.Errorf("at WHERE: condition with empty right side operand")
+		if c.OperandRight == "" {
+			return fmt.Errorf("condition with empty right side operand")
 		}
 	}
 	return nil
-}
-
-func (p *Parser) LogError() {
-	if p.err == nil {
-		return
-	}
-	fmt.Println(p.sql)
-	fmt.Println(strings.Repeat(" ", p.i) + "^")
-	fmt.Println(p.err)
 }
 
 func isIdentifier(s string) bool {

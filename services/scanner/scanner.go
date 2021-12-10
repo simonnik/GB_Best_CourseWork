@@ -60,7 +60,6 @@ func (s *Scann) MapFieldsToRow(row map[string]string, fields []string) map[strin
 		return row
 	}
 	res := make(map[string]string)
-	fmt.Print(fields)
 	for _, item := range fields {
 		res[item] = row[item]
 	}
@@ -106,23 +105,23 @@ func (s *Scann) IsApply(row map[string]string, query parser.Query) bool {
 		return true
 	}
 	for i, cond := range query.Conditions {
-		if val, ok := row[cond.Operand1]; !ok {
+		if val, ok := row[cond.OperandLeft]; !ok {
 			s.Results <- ScanResult{Err: fmt.Errorf(
-				"operand \"%s\" is undefined", cond.Operand1)} // Записываем ошибку в канал
+				"operand \"%s\" is undefined", cond.OperandLeft)} // Записываем ошибку в канал
 			break
 		} else {
 			var c bool
 			switch cond.Operator {
 			case parser.Eq:
-				c = val == cond.Operand2
+				c = val == cond.OperandRight
 			case parser.Gt:
-				c = val > cond.Operand2
+				c = val > cond.OperandRight
 			case parser.Gte:
-				c = val >= cond.Operand2
+				c = val >= cond.OperandRight
 			case parser.Lt:
-				c = val < cond.Operand2
+				c = val < cond.OperandRight
 			case parser.Lte:
-				c = val <= cond.Operand2
+				c = val <= cond.OperandRight
 			}
 
 			if i > 0 {
